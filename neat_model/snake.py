@@ -4,6 +4,8 @@ import sys
 import neat
 import os
 import math
+import pickle
+
 
 # --- Configuration ---
 pygame.init()
@@ -44,7 +46,7 @@ class Snake:
 
         self.frames_without_food += 1
         # Strict 5-second starvation timer (60 FPS * 5 = 300 frames)
-        if self.frames_without_food >= 300:
+        if self.frames_without_food >= 480:
             self.alive = False
             return
 
@@ -72,44 +74,155 @@ class Snake:
         else:
             self.body.pop()
 
+    # # def get_vision(self):
+    #     # 8-Directional Vision
+    #     directions = [
+    #         (0, -1), (1, -1), (1, 0), (1, 1),
+    #         (0, 1), (-1, 1), (-1, 0), (-1, -1)
+    #     ]
+    #
+    #     vision_inputs = []
+    #     head_x, head_y = self.body[0]
+    #
+    #     for dx, dy in directions:
+    #         dist_to_wall = 0
+    #         dist_to_food = 0
+    #         dist_to_body = 0
+    #
+    #         curr_x, curr_y = head_x, head_y
+    #         food_found = False
+    #         body_found = False
+    #
+    #         while True:
+    #             curr_x += dx * GRID_SIZE
+    #             curr_y += dy * GRID_SIZE
+    #
+    #             euclidean_dist = math.hypot((curr_x - head_x) / GRID_SIZE, (curr_y - head_y) / GRID_SIZE)
+    #
+    #             if curr_x < 0 or curr_x >= WIDTH or curr_y < 0 or curr_y >= HEIGHT:
+    #                 dist_to_wall = 1.0 / euclidean_dist
+    #                 break
+    #
+    #             if not food_found and (curr_x, curr_y) == self.food:
+    #                 dist_to_food = 1.0 / euclidean_dist
+    #                 food_found = True
+    #
+    #             if not body_found and (curr_x, curr_y) in self.body:
+    #                 dist_to_body = 1.0 / euclidean_dist
+    #                 body_found = True
+    #
+    #         vision_inputs.extend([dist_to_wall, dist_to_food, dist_to_body])
+    #     return vision_inputs
+
+    # def get_vision(self):
+    #     head_x, head_y = self.body[0]
+    #     dir_x, dir_y = self.direction
+    #
+    #     # 1. Determine relative directions based on current heading
+    #     # Normalize the current direction to 1 grid unit
+    #     norm_dir_x = dir_x // GRID_SIZE
+    #     norm_dir_y = dir_y // GRID_SIZE
+    #
+    #     # Calculate vectors for Front, Right, and Left
+    #     front_vec = (norm_dir_x, norm_dir_y)
+    #     right_vec = (-norm_dir_y, norm_dir_x)
+    #     left_vec = (norm_dir_y, -norm_dir_x)
+    #
+    #     vision_inputs = []
+    #
+    #     # 2. Raycast for Hazards (Front, Right, Left)
+    #     for dx, dy in [front_vec, right_vec, left_vec]:
+    #         curr_x, curr_y = head_x, head_y
+    #         dist = 0
+    #         while True:
+    #             curr_x += dx * GRID_SIZE
+    #             curr_y += dy * GRID_SIZE
+    #             dist += 1
+    #
+    #             # Check for Wall or Body collision
+    #             hit_wall = (curr_x < 0 or curr_x >= WIDTH or curr_y < 0 or curr_y >= HEIGHT)
+    #             hit_body = (curr_x, curr_y) in self.body
+    #
+    #             if hit_wall or hit_body:
+    #                 vision_inputs.append(1.0 / dist)  # Append scaled hazard distance
+    #                 break
+    #
+    #     # 3. Distance to Food
+    #     food_x, food_y = self.food
+    #     dist_to_food = math.hypot((food_x - head_x) / GRID_SIZE, (food_y - head_y) / GRID_SIZE)
+    #     vision_inputs.append(1.0 / dist_to_food)
+    #
+    #     # 4. Angle to Food (Relative to the snake's current heading)
+    #     # We calculate the absolute angle of the snake, and the absolute angle to the food
+    #     # Then subtract them to find out if the food is to the left (-), right (+), or straight (0)
+    #     snake_angle = math.atan2(dir_y, dir_x)
+    #     food_angle = math.atan2(food_y - head_y, food_x - head_x)
+    #
+    #     angle_diff = food_angle - snake_angle
+    #
+    #     # Normalize the angle to be strictly between -PI and PI
+    #     while angle_diff > math.pi: angle_diff -= 2 * math.pi
+    #     while angle_diff < -math.pi: angle_diff += 2 * math.pi
+    #
+    #     # Scale to a neat decimal between -1.0 and 1.0 for the neural network
+    #     normalized_angle = angle_diff / math.pi
+    #     vision_inputs.append(normalized_angle)
+    #
+    #     # Returns exactly 5 values: [Front_Hazard, Right_Hazard, Left_Hazard, Food_Dist, Food_Angle]
+    #     return vision_inputs
+
     def get_vision(self):
-        # 8-Directional Vision
-        directions = [
-            (0, -1), (1, -1), (1, 0), (1, 1),
-            (0, 1), (-1, 1), (-1, 0), (-1, -1)
-        ]
+        head_x, head_y = self.body[0]
+        dir_x, dir_y = self.direction
+
+        # 1. Normalize the current heading
+        nx = dir_x // GRID_SIZE
+        ny = dir_y // GRID_SIZE
+
+        # 2. Calculate the 5 Relative Hazard Directions
+        front = (nx, ny)
+        left = (ny, -nx)
+        right = (-ny, nx)
+        front_left = (nx + ny, ny - nx)  # Combines Front and Left
+        front_right = (nx - ny, ny + nx)  # Combines Front and Right
 
         vision_inputs = []
-        head_x, head_y = self.body[0]
 
-        for dx, dy in directions:
-            dist_to_wall = 0
-            dist_to_food = 0
-            dist_to_body = 0
-
+        # 3. Raycast for Hazards in all 5 directions
+        # Order: [Front, Front-Left, Left, Front-Right, Right]
+        for dx, dy in [front, front_left, left, front_right, right]:
             curr_x, curr_y = head_x, head_y
-            food_found = False
-            body_found = False
-
+            dist = 0
             while True:
                 curr_x += dx * GRID_SIZE
                 curr_y += dy * GRID_SIZE
+                dist += 1
 
-                euclidean_dist = math.hypot((curr_x - head_x) / GRID_SIZE, (curr_y - head_y) / GRID_SIZE)
+                hit_wall = (curr_x < 0 or curr_x >= WIDTH or curr_y < 0 or curr_y >= HEIGHT)
+                hit_body = (curr_x, curr_y) in self.body
 
-                if curr_x < 0 or curr_x >= WIDTH or curr_y < 0 or curr_y >= HEIGHT:
-                    dist_to_wall = 1.0 / euclidean_dist
+                if hit_wall or hit_body:
+                    vision_inputs.append(1.0 / dist)
                     break
 
-                if not food_found and (curr_x, curr_y) == self.food:
-                    dist_to_food = 1.0 / euclidean_dist
-                    food_found = True
+        # 4. Distance to Food
+        food_x, food_y = self.food
+        dist_to_food = math.hypot((food_x - head_x) / GRID_SIZE, (food_y - head_y) / GRID_SIZE)
+        vision_inputs.append(1.0 / dist_to_food)
 
-                if not body_found and (curr_x, curr_y) in self.body:
-                    dist_to_body = 1.0 / euclidean_dist
-                    body_found = True
+        # 5. Angle to Food
+        snake_angle = math.atan2(dir_y, dir_x)
+        food_angle = math.atan2(food_y - head_y, food_x - head_x)
 
-            vision_inputs.extend([dist_to_wall, dist_to_food, dist_to_body])
+        angle_diff = food_angle - snake_angle
+
+        while angle_diff > math.pi: angle_diff -= 2 * math.pi
+        while angle_diff < -math.pi: angle_diff += 2 * math.pi
+
+        vision_inputs.append(angle_diff / math.pi)
+
+        # Returns exactly 7 values:
+        # [Front, Front-Left, Left, Front-Right, Right, Food_Dist, Food_Angle]
         return vision_inputs
 
     def draw(self, surface):
@@ -153,24 +266,40 @@ def eval_genomes(genomes, config):
             output = nets[x].activate(inputs)
             decision = output.index(max(output))
 
-            if decision == 0 and snake.direction != (0, GRID_SIZE):
-                snake.direction = (0, -GRID_SIZE)
-            elif decision == 1 and snake.direction != (0, -GRID_SIZE):
-                snake.direction = (0, GRID_SIZE)
-            elif decision == 2 and snake.direction != (GRID_SIZE, 0):
-                snake.direction = (-GRID_SIZE, 0)
-            elif decision == 3 and snake.direction != (-GRID_SIZE, 0):
-                snake.direction = (GRID_SIZE, 0)
+            # --- THE RELATIVE STEERING BUG FIX ---
+            dir_x, dir_y = snake.direction
+
+            if decision == 0:
+                pass  # Go Straight (Do nothing to the direction)
+            elif decision == 1:
+                # Turn Right (90-degree vector rotation)
+                snake.direction = (-dir_y, dir_x)
+            elif decision == 2:
+                # Turn Left (90-degree vector rotation)
+                snake.direction = (dir_y, -dir_x)
+
+
+            # --- MEASURE DISTANCE BEFORE MOVING ---
+            dist_before = math.hypot(snake.body[0][0] - snake.food[0], snake.body[0][1] - snake.food[1])
 
             snake.move()
 
-            # --- PURE REWARD LOGIC ---
             if snake.alive:
-                ge[x].fitness += 0.01
+                ge[x].fitness += 0.02
+
+                # --- MEASURE DISTANCE AFTER MOVING ---
+                dist_after = math.hypot(snake.body[0][0] - snake.food[0], snake.body[0][1] - snake.food[1])
+
+                # The Breadcrumb Reward
+                if dist_after < dist_before:
+                    ge[x].fitness += 0.1  # Reward for moving toward the apple
+                else:
+                    ge[x].fitness -= 0.09  # Penalty for moving away or driving parallel
+
                 snake.draw(screen)
             else:
-                ge[x].fitness -= 1
-                ge[x].fitness += (snake.score * 10)
+                ge[x].fitness -= 1  # Penalty for hitting a wall or starving
+                ge[x].fitness += (snake.score * 10)  # Big bonus for actually eating!
 
                 snakes.pop(x)
                 nets.pop(x)
@@ -190,12 +319,22 @@ def run(config_path):
     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
                                 neat.DefaultSpeciesSet, neat.DefaultStagnation,
                                 config_path)
+
     p = neat.Population(config)
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
 
-    p.run(eval_genomes, 100)
+    # 1. Capture the winner after 100 generations (or if it hits the fitness threshold)
+    print("\n--- Starting Evolution ---")
+    winner = p.run(eval_genomes, 100)
+
+    # 2. Save the champion's brain to a file
+    with open("best_snake.pkl", "wb") as f:
+        pickle.dump(winner, f)
+
+    print("\nTraining Complete!")
+    print("Saved the absolute best snake to 'best_snake.pkl'")
 
 
 if __name__ == "__main__":
