@@ -226,7 +226,7 @@ def eval_genomes(genomes, config):
             else:
                 ge[x].fitness -= 2  # Penalty for dying
                 # Heavy reward based on how much food it ate
-                ge[x].fitness += (snake.score * 10) + 2
+                ge[x].fitness += (snake.score * 10) + 5
 
                 # Remove dead snakes
                 snakes.pop(x)
