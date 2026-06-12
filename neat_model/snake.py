@@ -228,16 +228,37 @@ def run(config_path):
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
 
-    # 1. Capture the winner after 100 generations (or if it hits the fitness threshold)
     print("\n--- Starting Evolution ---")
-    winner = p.run(eval_genomes, 100)
+    p.run(eval_genomes, 100)  # Run for up to 100 generations
 
-    # 2. Save the champion's brain to a file
-    with open("best_snake.pkl", "wb") as f:
-        pickle.dump(winner, f)
+    # --- SAVE THE TOP 3 CHAMPIONS ---
+    print("\n--- Saving Top 3 Models ---")
+
+    # Get the best genome from every generation
+    all_generation_champs = stats.most_fit_genomes
+
+    # Sort them by their fitness score (Highest to lowest)
+    all_generation_champs.sort(key=lambda g: g.fitness, reverse=True)
+
+    top_3_unique = []
+    seen_ids = set()
+
+    # Filter out duplicates (Sometimes a great snake survives multiple generations)
+    for genome in all_generation_champs:
+        if genome.key not in seen_ids:
+            top_3_unique.append(genome)
+            seen_ids.add(genome.key)
+        if len(top_3_unique) == 3:
+            break
+
+    # Save them to 3 separate pickle files
+    for rank, genome in enumerate(top_3_unique):
+        filename = f"best_snake_{rank + 1}.pkl"
+        with open(filename, "wb") as f:
+            pickle.dump(genome, f)
+        print(f"Rank {rank + 1}: Saved to '{filename}' | Fitness: {genome.fitness:.2f}")
 
     print("\nTraining Complete!")
-    print("Saved the absolute best snake to 'best_snake.pkl'")
 
 
 if __name__ == "__main__":
