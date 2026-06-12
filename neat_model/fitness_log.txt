@@ -1,1 +1,12 @@
 --- NEAT Snake Fitness Evolution ---
+Generation 0: Best Fitness = 14.07 | Approx Apples = 1
+Generation 1: Best Fitness = 14.08 | Approx Apples = 1
+Generation 2: Best Fitness = 14.08 | Approx Apples = 1
+Generation 3: Best Fitness = 24.05 | Approx Apples = 2
+Generation 4: Best Fitness = 24.05 | Approx Apples = 2
+Generation 5: Best Fitness = 24.05 | Approx Apples = 2
+Generation 6: Best Fitness = 24.05 | Approx Apples = 2
+Generation 7: Best Fitness = 24.05 | Approx Apples = 2
+Generation 8: Best Fitness = 24.05 | Approx Apples = 2
+Generation 9: Best Fitness = 24.05 | Approx Apples = 2
+Generation 10: Best Fitness = 24.05 | Approx Apples = 2

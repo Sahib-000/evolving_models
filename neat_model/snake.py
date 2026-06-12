@@ -221,11 +221,11 @@ def eval_genomes(genomes, config):
             snake.move()
 
             if snake.alive:
-                ge[x].fitness += 0.01
+                ge[x].fitness += 0.001
                 snake.draw(screen)
             else:
                 ge[x].fitness -= 1
-                ge[x].fitness += (snake.score * 10)
+                ge[x].fitness += (snake.score * 10) + 5
 
                 snakes.pop(x)
                 nets.pop(x)
