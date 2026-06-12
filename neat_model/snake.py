@@ -14,6 +14,8 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("NEAT Snake Training")
 clock = pygame.time.Clock()
 
+generation = 0
+
 # --- Classes ---
 class Snake:
 
@@ -173,7 +175,11 @@ class Snake:
 
 
 # --- NEAT Fitness Function ---
+# --- NEAT Fitness Function ---
 def eval_genomes(genomes, config):
+    global generation  # Pull in our global counter
+    generation += 1  # Increase it by 1 for this new run
+
     nets = []
     ge = []
     snakes = []
@@ -189,8 +195,7 @@ def eval_genomes(genomes, config):
 
     running = True
     while running and len(snakes) > 0:
-        # Run at 60 FPS for training speed
-        clock.tick(120)
+        clock.tick(60)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -200,14 +205,10 @@ def eval_genomes(genomes, config):
         screen.fill((20, 20, 20))
 
         for x, snake in enumerate(snakes):
-            # Give the AI its 24 vision inputs
             inputs = snake.get_vision()
             output = nets[x].activate(inputs)
-
-            # Determine the highest output node (0: Up, 1: Down, 2: Left, 3: Right)
             decision = output.index(max(output))
 
-            # Apply movement, preventing it from reversing into itself
             if decision == 0 and snake.direction != (0, GRID_SIZE):
                 snake.direction = (0, -GRID_SIZE)
             elif decision == 1 and snake.direction != (0, -GRID_SIZE):
@@ -217,29 +218,29 @@ def eval_genomes(genomes, config):
             elif decision == 3 and snake.direction != (-GRID_SIZE, 0):
                 snake.direction = (GRID_SIZE, 0)
 
-            # Move and evaluate fitness
             snake.move()
 
             if snake.alive:
-                ge[x].fitness += 0.01  # Tiny reward for surviving a frame
+                ge[x].fitness += 0.01
                 snake.draw(screen)
             else:
-                ge[x].fitness -= 2  # Penalty for dying
-                # Heavy reward based on how much food it ate
-                ge[x].fitness += (snake.score * 10) + 5
+                ge[x].fitness -= 1
+                ge[x].fitness += (snake.score * 10)
 
-                # Remove dead snakes
                 snakes.pop(x)
                 nets.pop(x)
                 ge.pop(x)
 
-        # Draw UI
+        # --- UPDATED UI DRAWING ---
         alive_text = font.render(f"Alive: {len(snakes)}", True, (255, 255, 255))
+        gen_text = font.render(f"Generation: {generation}", True, (255, 255, 255))
+
         screen.blit(alive_text, (10, 10))
+        screen.blit(gen_text, (10, 50))  # Drawn right below the Alive text
+
         pygame.display.flip()
 
 
-# --- NEAT Setup ---
 # --- NEAT Setup ---
 def run(config_path):
     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
