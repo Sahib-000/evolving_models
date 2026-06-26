@@ -15,5 +15,4 @@ The tool automates the evolution of neural networks through an iterative, genera
 3. **Selection & Reproduction:** Networks with the highest fitness scores are selected as "parents." Their genetic structures are crossed over and mutated to generate a new, potentially better population of neural networks. 
 
 4. **Termination:** This evolutionary loop repeats automatically generation after generation until a network reaches the predefined target fitness score. 
-# Evolutionary Neural-Network/Ai models
-Evolutionary Neural-Network/Ai models
+
