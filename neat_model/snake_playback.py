@@ -187,6 +187,6 @@ if __name__ == "__main__":
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, "config-snake.txt")
     # Change this filename if you want to test snake 2 or 3!
-    genome_path = os.path.join(local_dir, "best_snake.pkl")
+    genome_path = os.path.join(local_dir, "best_snake_1.pkl")
 
     replay_genome(config_path, genome_path)
